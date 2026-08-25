@@ -1,0 +1,6 @@
+{
+  "beginner":      { "rows": 9,  "cols": 9,  "mines": 10 },
+  "intermediate":  { "rows": 16, "cols": 16, "mines": 40 },
+  "expert":        { "rows": 16, "cols": 30, "mines": 99 },
+  "custom_limits": { "min_rows": 9, "max_rows": 24, "min_cols": 9, "max_cols": 30, "min_mines": 10 }
+}
