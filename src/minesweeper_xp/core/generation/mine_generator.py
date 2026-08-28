@@ -23,7 +23,20 @@ def _safe_zone(click: Coordinate, mode: str, rows: int, cols: int) -> set[Coordi
     返回:
         禁止布雷的坐标集合。
     """
-    ...
+    result: set[Coordinate] = set()
+    if mode == "cell":
+        # 首格禁止布雷
+        result.add(click)
+    else:
+        # 3x3 范围禁止布雷
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                cr = click.row + dr
+                cc = click.col + dc
+                if 0 <= cr <= rows - 1 and 0 <= cc <= cols - 1:  # 棋盘内
+                    result.add(Coordinate(cr, cc))
+
+    return result
 
 
 def place_mines(
@@ -45,4 +58,25 @@ def place_mines(
     返回:
         无。
     """
-    ...
+    # 获取安全区
+    safe_zone: set[Coordinate] = _safe_zone(first_click, safe_mode, board.rows, board.cols)
+    if mine_count > board.rows * board.cols - len(safe_zone):
+        raise ValueError(
+            f"雷的数量({mine_count})不能超过可用格子数"
+            f"({board.rows * board.cols - len(safe_zone)})"
+        )
+    for _ in range(mine_count):
+        while True:
+            coord: Coordinate = Coordinate(
+                rng.randint(0, board.rows - 1),
+                rng.randint(0, board.cols - 1),
+            )
+            if board.cell(coord).is_mine:
+                # 是雷
+                continue
+            if coord in safe_zone:
+                # 是安全区
+                continue
+            # 不是雷
+            board.cell(coord).is_mine = True
+            break
