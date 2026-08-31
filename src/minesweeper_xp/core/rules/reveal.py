@@ -20,14 +20,11 @@ def count_adjacent_mines(board: Board, coord: Coordinate) -> int:
     返回:
         邻域内雷的数量（0~8）。
     """
-    flags:int = 0
-    for dr in (-1,0,1):
-        for dc in (-1,0,1):
-            if dr == 0 and dc == 0:
-                continue
-
-            if board.cell(Coordinate(coord.row+dr,coord.col+dc)).is_mine:# 有雷
-                flags += 1
+    flags: int = 0
+    nb8: list[Coordinate] = board.neighbors8(coord)
+    for nb in nb8:
+        if board.cell(nb).is_mine:  # 有雷
+            flags += 1
     return flags
 
 
@@ -43,7 +40,9 @@ def calculate_adjacent_mines(board: Board) -> None:
     返回:
         无。
     """
-    ...
+    for coord in board.all_coords():  # 遍历棋盘
+        board.cell(coord).adjacent_mines = count_adjacent_mines(board, coord)
+
 
 
 def reveal_cell(board: Board, coord: Coordinate) -> bool:
@@ -58,14 +57,16 @@ def reveal_cell(board: Board, coord: Coordinate) -> bool:
     返回:
         翻开返回 True，否则返回 False。
     """
-    if not board.in_bounds(coord):# 越界
+    if not board.in_bounds(coord):  # 越界
         return False
 
     cell = board.cell(coord)
 
-    if cell.is_revealed:# 已经翻开
+    if cell.is_revealed:  # 已经翻开
         return False
-    if cell.is_mine:# 是雷
+    if cell.is_mine:  # 是雷
+        return False
+    if cell.mark is Mark.FLAG:  # 是旗子
         return False
 
     # 执行翻开
@@ -84,29 +85,26 @@ def flood_fill(board: Board, start: Coordinate) -> list[Coordinate]:
         本次被翻开的全部格子坐标列表（含 start）。
 
     补充说明:
-        以start开始 八个方向开始蔓延
-        如果周围没有雷，则蔓延，当前格翻开，当前格数字为空（或者0）
-        如果有雷，停止蔓延，当前格翻开
+        以 start 为起点，沿 8 个方向 BFS 扩散。
+        当前格周围没有雷（adjacent_mines == 0）时继续扩散，
+        并把 8 个邻居入列；当前格周围有雷（数字格）时只翻开
+        当前格、不再扩散。
+        雷、旗子、越界或已翻开的格子会被 reveal_cell 拒绝并跳过
     """
-
-    coords:list[Coordinate]= []
+    coords: list[Coordinate] = []
     queue_coords = deque()
-    queue_coords.append(start)# 入列
-    while True:
-        if len(queue_coords) == 0:# 队列为空
-            break
-
-        coord = queue_coords.popleft()# 出列
+    queue_coords.append(start)  # 入列
+    while queue_coords:  # 队列非空则继续处理
+        coord = queue_coords.popleft()  # 出列
         cell = board.cell(coord)
-        if cell.is_revealed:  # 已经被翻开了
+        if not reveal_cell(board, coord):  # 雷/旗/越界/已翻开：跳过，不扩散
             continue
 
-        if cell.adjacent_mines == 0:# 周围没有雷
-            #获取8个邻居入列
-            nb8 = board.neighbors8(coord)
-            for nb in nb8:
-                queue_coords.append(nb)
+        # 当前格已被 reveal_cell 翻开，记录坐标
+        coords.append(coord)
 
-        if reveal_cell(board,coord): # 最后翻开格子
-            coords.append(coord) # 添加坐标
+        if cell.adjacent_mines == 0:  # 周围没有雷，继续扩散
+            # 把 8 个邻居一次性入列（extend 添加多个元素）
+            queue_coords.extend(board.neighbors8(coord))
+
     return coords
