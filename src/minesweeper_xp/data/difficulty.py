@@ -52,6 +52,29 @@ def load_difficulties(path: Path) -> DifficultyConfig:
     )
 
 
+def default_difficulties() -> DifficultyConfig:
+    """返回内置默认难度配置（三档预设与自定义范围），不依赖 JSON 文件。
+
+    参数:
+        无。
+
+    返回:
+        与 res/difficulties.json 默认内容一致的 DifficultyConfig。
+    """
+    return DifficultyConfig(
+        presets={
+            "beginner": Difficulty(rows=9, cols=9, mines=10),
+            "intermediate": Difficulty(rows=16, cols=16, mines=40),
+            "expert": Difficulty(rows=16, cols=30, mines=99),
+        },
+        min_rows=9,
+        max_rows=24,
+        min_cols=9,
+        max_cols=30,
+        min_mines=10,
+    )
+
+
 def validate_custom(rows: int, cols: int, mines: int, cfg: DifficultyConfig) -> None:
     """校验自定义难度，非法抛 ValueError（开发文档 §4.4）。"""
     if not (cfg.min_rows <= rows <= cfg.max_rows):
