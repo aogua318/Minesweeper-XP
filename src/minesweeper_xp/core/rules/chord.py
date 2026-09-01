@@ -13,7 +13,8 @@ def chord(board: Board, coord: Coordinate) -> tuple[list[Coordinate], bool]:
     """对已翻开的格子执行连开。
 
     仅当格子已翻开且周围旗数等于其数字（adjacent_mines）时执行；
-    逐个翻开周围非旗格子，若其中包含雷则立即停止。
+    逐个翻开周围非旗格子，一旦踩到雷立即中断并返回 True，
+    不再翻开其余邻居（终局显示由 UI 层直接读取棋盘完成）。
 
     参数:
         board: 目标棋盘。
@@ -21,7 +22,8 @@ def chord(board: Board, coord: Coordinate) -> tuple[list[Coordinate], bool]:
 
     返回:
         (本次翻开的格子列表, 是否踩雷)。
-        未满足连开条件时返回 ([], False)；opened 只包含真正翻开的格子。
+        未满足连开条件时返回 ([], False)；opened 只包含真正翻开的格子，
+        雷保持未翻开，其余未翻开的邻居也保持原状（终局由 UI 叠加渲染）。
     """
     cell = board.cell(coord)
     # 当前格子没有被翻开
@@ -43,7 +45,7 @@ def chord(board: Board, coord: Coordinate) -> tuple[list[Coordinate], bool]:
         nb_cell = board.cell(nb)
         if nb_cell.is_revealed or nb_cell.mark is Mark.FLAG:  # 邻居已被翻开或标旗
             continue
-        if nb_cell.is_mine:  # 踩到雷：立即返回，已翻开的格子一并带回
+        if nb_cell.is_mine:  # 踩到雷：立即中断，已翻开的格子一并带回
             return coords, True
 
         # 翻开并洪水填充

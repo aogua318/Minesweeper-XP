@@ -25,10 +25,15 @@ class Clock(Protocol):
         """恢复计时。"""
         ...
 
+    def reset(self) -> None:
+        """重置为初始状态（未运行、未暂停、0 秒）。"""
+        ...
+
     @property
     def elapsed(self) -> int:
         """当前已计秒数（0~999，999 封顶）。"""
         ...
+
 
 
 class FakeClock:
@@ -54,6 +59,12 @@ class FakeClock:
     def resume(self) -> None:
         """恢复计时。"""
         self._paused = False
+
+    def reset(self) -> None:
+        """重置为初始状态（未运行、未暂停、0 秒）。"""
+        self._running = False
+        self._paused = False
+        self._elapsed = 0
 
     def tick(self, seconds: int = 1) -> None:
         """手动推进 elapsed。

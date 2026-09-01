@@ -5,7 +5,7 @@
 """
 from dataclasses import dataclass
 
-from .enums import FaceState, GameStatus, Mark
+from .enums import FaceState, GameStatus, LostReason, Mark
 from .model.coordinate import Coordinate
 
 
@@ -71,4 +71,7 @@ class GameWon(Event):
 
 @dataclass(frozen=True)
 class GameLost(Event):
-    """失败事件。"""
+    """失败事件（携带失败原因与触发坐标，供 UI 终局叠加渲染）。"""
+
+    reason: LostReason  # 失败原因：REVEAL=左键踩雷，CHORD=连开踩雷
+    coord: Coordinate  # 触发坐标（踩中的雷或连开点）

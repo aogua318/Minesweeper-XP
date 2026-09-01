@@ -9,14 +9,11 @@ from dataclasses import dataclass
 from typing import Callable
 
 from minesweeper_xp.data import difficulty
-from rules.reveal import flood_fill, calculate_adjacent_mines
-from rules.victory import is_won
 from .clock import Clock, FakeClock
 from .command import ChangeDifficulty, ChordCell, Command, RestartGame, RevealCell, ToggleMark
-from .enums import FaceState, GameStatus, Mark
+from .enums import FaceState, GameStatus, LostReason, Mark
 from .event import (
     CellMarked,
-    CellRevealed,
     CellsRevealed,
     Event,
     FaceChanged,
@@ -29,7 +26,10 @@ from .event import (
 from .generation.mine_generator import place_mines
 from .model.board import Board
 from .model.coordinate import Coordinate
-from .rules import chord, marking, reveal, victory
+from .rules.chord import chord
+from .rules.marking import cycle_mark
+from .rules.reveal import calculate_adjacent_mines, flood_fill
+from .rules.victory import is_won
 
 
 @dataclass
@@ -71,7 +71,6 @@ class Game:
         self._board: Board = Board(9, 9)  # 棋盘（开局时按难度重建）
         self._rng: random.Random = random.Random()  # 随机数生成器（布雷用）
         self._first_click: Coordinate | None = None  # 首次点击坐标（布雷锚点）
-        self._last_trigger: Coordinate | None = None  # 判负触发坐标，供 UI 终局高亮
         self.safe_mode: str = "cell"  # 首击安全区模式（zone3x3 / cell）
         self.marks_enabled: bool = True  # 是否启用问号标记
         self.state: GameState = GameState(
@@ -118,11 +117,10 @@ class Game:
         返回:
             无。
         """
-        self._clock.stop()
-        self._board = Board(rows, cols)
-        self._rng = random.Random()
+        self._clock.reset()  # 停表并清零（重开从 0 计起）
+        self._board = Board(rows, cols)  # 棋盘重置
+        self._rng = random.Random()  # 随机数重置
         self._first_click = None  # 首次点击坐标（布雷锚点）
-        self._last_trigger = None  # 清空上一局判负触发坐标
         self.state = GameState(
             GameStatus.READY, difficulty, rows, cols, mines, mines, 0, FaceState.NORMAL
         )
@@ -140,13 +138,13 @@ class Game:
         返回:
             无。
         """
-        if isinstance(command,RestartGame): # 重启命令  第一顺位 保证重启命令能一直执行
+        if isinstance(command, RestartGame):  # 重启命令第一顺位，保证始终可执行
             self.new_game(
-                self.state.difficulty,self.state.rows,self.state.cols,self.state.mine_count
+                self.state.difficulty, self.state.rows, self.state.cols, self.state.mine_count
             )
             return
 
-        if self.state.status in (GameStatus.WON, GameStatus.LOST): # 如果是终局 则 直接返回，防止运行其他命令
+        if self.state.status in (GameStatus.WON, GameStatus.LOST):  # 终局后忽略其他命令
             return
 
         if isinstance(command, ChangeDifficulty):  # 调整难度等于重开一局
@@ -177,34 +175,39 @@ class Game:
         返回:
             无。
         """
+        # 越界防御
+        if not self.board.in_bounds(coord):  # 不在棋盘内
+            return
+
         # 判断是不是首击，如果是，则进行首击布雷
         if self._first_click is None:
             # 首击布雷
-            place_mines(self.board,self.state.mine_count,coord,self.safe_mode,self._rng)
+            place_mines(self.board, self.state.mine_count, coord, self.safe_mode, self._rng)
             # 初始化棋盘
             calculate_adjacent_mines(self.board)
             # 修改首击布雷标志位
             self._first_click = coord
             # 启动棋盘计时
             self._clock.start()
-            self.state.status = GameState.status.PLAYING
+            self.state.status = GameStatus.PLAYING
+            self._emit(GameStateChanged(GameStatus.PLAYING))
 
         # 判断是不是雷
-        if self.board.cell(coord).is_mine: # 是雷
-            self._end(GameState.status.LOST)# 触发终局事件
-            self._emit(GameLost())  # 判负
+        if self.board.cell(coord).is_mine:  # 是雷
+            self._end(GameStatus.LOST, LostReason.REVEAL, coord)  # 左键踩雷：只高亮该雷
             return
 
         # 该位置点击一次 洪水填充
-        coords = flood_fill(self.board,coord)
+        coords = flood_fill(self.board, coord)
         # 构造 tuple[tuple[Coordinate, int], ...]
-        self._emit(CellsRevealed())
-        pass TO DO
+        if coords:  # 只在实际翻开了格子时才发布事件
+            event = tuple((x, self.board.cell(x).adjacent_mines) for x in coords)
+
+            self._emit(CellsRevealed(event))
 
         # 胜利判定
-        if is_won(self.board,self.state.mine_count):
-            self._end(GameState.status.WON)  # 触发终局事件
-            self._emit(GameWon())  # 判胜
+        if is_won(self.board, self.state.mine_count):
+            self._end(GameStatus.WON)  # 触发终局事件
             return
 
     def _mark(self, coord: Coordinate) -> None:
@@ -216,7 +219,18 @@ class Game:
         返回:
             无。
         """
-        ...
+        # 越界防御
+        if not self.board.in_bounds(coord):  # 不在棋盘内
+            return
+
+        cell = self.board.cell(coord)
+
+        delta = cycle_mark(cell, self.marks_enabled)
+        self.state.remaining_mines += delta
+
+        self._emit(CellMarked(coord, cell.mark))
+        self._emit(FlagsChanged(self.state.remaining_mines))
+
 
     def _chord(self, coord: Coordinate) -> None:
         """处理连开命令：触发连开、踩雷判负、胜利判定。
@@ -227,15 +241,54 @@ class Game:
         返回:
             无。
         """
-        ...
+        # 越界防御
+        if not self.board.in_bounds(coord):  # 不在棋盘内
+            return
 
-    def _end(self, status: GameStatus) -> None:
+        # 执行连开
+        coords, mine = chord(self.board, coord)
+        # 无论是否踩雷，先发布本次真正翻开的格子（踩雷前已翻开的也通知 UI）
+        if coords:
+            event = tuple((x, self.board.cell(x).adjacent_mines) for x in coords)
+            self._emit(CellsRevealed(event))
+
+        if mine:  # 踩到雷：终局，UI 叠加渲染连开点邻居
+            self._end(GameStatus.LOST, LostReason.CHORD, coord)
+            return
+
+        # 胜利判定
+        if is_won(self.board, self.state.mine_count):
+            self._end(GameStatus.WON)
+
+
+    def _end(
+        self,
+        status: GameStatus,
+        reason: LostReason | None = None,
+        coord: Coordinate | None = None,
+    ) -> None:
         """进入终局：停表、更新状态、发布终局事件。
 
         参数:
             status: 终局状态（WON 或 LOST）。
+            reason: 失败原因（仅 LOST 需要，REVEAL=左键踩雷 / CHORD=连开踩雷）。
+            coord: 触发坐标（仅 LOST 需要，踩中的雷或连开点）。
 
         返回:
             无。
         """
-        ...
+        self._clock.stop()  # 停表
+        self.state.status = status  # 改状态
+        if status is GameStatus.WON:  # 改笑脸
+            self.state.face_state = FaceState.WINNER
+        else:
+            self.state.face_state = FaceState.LOST
+
+        self.state.elapsed_seconds = self._clock.elapsed  # 定格最后秒数
+        self._emit(FaceChanged(self.state.face_state))  # 笑脸事件
+        self._emit(GameStateChanged(status))  # 改状态事件
+        if status is GameStatus.WON:  # 胜利事件
+            self._emit(GameWon())
+        else:  # 失败事件（携带原因与触发坐标，供 UI 终局叠加渲染）
+            assert reason is not None and coord is not None
+            self._emit(GameLost(reason=reason, coord=coord))
