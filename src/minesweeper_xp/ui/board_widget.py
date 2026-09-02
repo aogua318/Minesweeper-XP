@@ -97,8 +97,8 @@ class BoardWidget(QWidget):
         """
         painter = QPainter(self)  # 画笔
         s = self.cell_size()  # 格子边长
-        painter.fillRect(0, 0, 144+6, 144+6, QColor(128, 128, 128))
-        painter.fillRect(0, 0, 144+6, 144+6, QColor(128, 128, 128))
+        painter.fillRect(0, 0, 144+3, 144+3, QColor(128, 128, 128))# 最外层边框
+        painter.fillRect(0, 0, 144+3, 144+3, QColor(128, 128, 128))
         # 内容
         painter.setPen(Qt.GlobalColor.black)  # 设置文字颜色
 

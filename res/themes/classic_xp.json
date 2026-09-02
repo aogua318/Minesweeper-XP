@@ -1,0 +1,15 @@
+{
+  "name": "classic_xp",
+  "display_name": { "zh_CN": "经典 XP", "en_US": "Classic XP" },
+  "sprites": {
+    "blocks": "sprites/blocks_color.bmp",
+    "blocks_mono": "sprites/blocks_mono.bmp",
+    "digits": "sprites/digits_color.bmp",
+    "digits_mono": "sprites/digits_mono.bmp",
+    "smiles": "sprites/smiles_color.bmp",
+    "smiles_mono": "sprites/smiles_mono.bmp",
+    "icon": "icons/app.ico"
+  },
+  "sizes": { "cell": 16, "digit": [13, 23], "smile": 24 },
+  "colors": { "background": "#C0C0C0", "led_bg": "#000000", "led_fg": "#FF0000" }
+}
