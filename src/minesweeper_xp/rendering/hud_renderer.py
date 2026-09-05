@@ -163,6 +163,24 @@ def draw_bevel(
     painter.setPen(old_pen)
 
 
+def face_rect(width: int) -> QRect:
+    """计算笑脸按钮在 HUD 中的逻辑矩形（绘制与点击命中共用）。
+
+    笑脸在 HUD 面板内水平居中：面板宽 = width - HUD_LEFT - HUD_RIGHT_MARGIN，
+    按钮外框比笑脸图块大 1px（SMILE_SIZE + 1），最外层再留 1px 暗边。
+
+    参数:
+        width: 窗口逻辑宽度（100% 缩放下的内容区宽度）。
+
+    返回:
+        笑脸按钮外框矩形（逻辑坐标）。
+    """
+    panel_width = width - HUD_LEFT - HUD_RIGHT_MARGIN  # HUD 面板宽度
+    face_cell = SMILE_SIZE + 2  # 笑脸按钮外层（图块 + 四周各 1px）
+    dx = (panel_width - face_cell) // 2  # 水平居中偏移
+    return QRect(HUD_LEFT + dx, SMILE_Y - 1, SMILE_SIZE + 1, SMILE_SIZE + 1)
+
+
 def draw_hud(
     painter: QPainter,
     sprites: SpriteSet,
@@ -187,7 +205,7 @@ def draw_hud(
     """
 
     # 设置矩形 矩形填充颜色由上层指定
-    rect_hud = QRect(HUD_TOP, HUD_LEFT, width - HUD_LEFT - HUD_RIGHT_MARGIN, HUD_HEIGHT)
+    rect_hud = QRect(HUD_LEFT, HUD_TOP, width - HUD_LEFT - HUD_RIGHT_MARGIN, HUD_HEIGHT)
     painter.drawRect(rect_hud)
 
     # 绘制边框
@@ -206,12 +224,8 @@ def draw_hud(
     # 绘制雷数 LED 数字
     draw_led_digits(painter, sprites, remaining_mines, MINE_LED_X_START, LED_Y)
 
-    # 绘制笑脸
-    # 笑脸矩形   最外层有一层四周的暗色矩形  居中
-    rect_face_cell = SMILE_SIZE + 2  # 计算边长
-
-    dx = (rect_hud.width() - rect_face_cell) // 2
-    rect_face = QRect(rect_hud.x() + dx, SMILE_Y - 1, SMILE_SIZE + 1, SMILE_SIZE + 1)
+    # 绘制笑脸（位置由 face_rect 统一给出，供点击命中复用）
+    rect_face = face_rect(width)
 
     painter.drawRect(rect_face)
     # 绘制笑脸图像

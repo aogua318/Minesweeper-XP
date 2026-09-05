@@ -64,6 +64,7 @@ def draw_board(
     sprites: SpriteSet,
     cell_size: int,
     game_over: bool = False,
+    pressed: Coordinate | None = None,
 ) -> None:
     """绘制整个棋盘：逐格计算状态并画到 (col*cell_size, row*cell_size)。
 
@@ -73,13 +74,18 @@ def draw_board(
         sprites: 已加载的方块精灵图块。
         cell_size: 单格像素边长。
         game_over: 是否终局（影响雷/旗的显示）。
+        pressed: 左键按住的格子（画按下外观：无标记=0、问号=9）；
+            None 表示当前没有按住的格子。
 
     返回:
         无。
     """
     for coord in board.all_coords():
         cell = board.cell(coord)
-        block_state = cell_block_state(cell,game_over) # 获取图块位置
+        if pressed is not None and coord == pressed and not cell.is_revealed:  # 按下外观
+            block_state = 9 if cell.mark is Mark.QUESTION else 0
+        else:
+            block_state = cell_block_state(cell,game_over) # 获取图块位置
         painter.drawPixmap(coord.col * cell_size,coord.row * cell_size,sprites.blocks[block_state])
 
 

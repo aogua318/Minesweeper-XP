@@ -96,20 +96,22 @@ def load_sprite_sheet(
     return _slice_tiles(image, tile_count, tile_width, tile_height)  # 切块返回
 
 
-def load_sprite_set(sprites: dict[str, str], res_dir: Path) -> SpriteSet:
-    """按主题的 sprites 字段加载彩色精灵图条。
+def load_sprite_set(sprites: dict[str, str], res_dir: Path, mono: bool = False) -> SpriteSet:
+    """按主题的 sprites 字段加载一套精灵图条（彩色或单色）。
 
     参数:
-        sprites: 主题的 sprites 字典（键如 blocks/digits/smiles）。
+        sprites: 主题的 sprites 字典（键如 blocks/blocks_mono、
+            digits/digits_mono、smiles/smiles_mono）。
         res_dir: res 资源根目录，用于拼接相对路径。
+        mono: True 加载单色图条（*_mono），False 加载彩色图条。
 
     返回:
         包含方块/数字/笑脸三组图块的 SpriteSet。
     """
-
-    blocks_path = res_dir / sprites["blocks"]
-    digits_path = res_dir / sprites["digits"]
-    smiles_path = res_dir / sprites["smiles"]
+    suffix = "_mono" if mono else ""  # 单色模式的键名后缀
+    blocks_path = res_dir / sprites["blocks" + suffix]
+    digits_path = res_dir / sprites["digits" + suffix]
+    smiles_path = res_dir / sprites["smiles" + suffix]
 
     blocks = load_sprite_sheet(blocks_path, BLOCK_TILE_COUNT, BLOCK_TILE_SIZE, BLOCK_TILE_SIZE)
     digits = load_sprite_sheet(digits_path, DIGIT_TILE_COUNT, DIGIT_TILE_WIDTH, DIGIT_TILE_HEIGHT)

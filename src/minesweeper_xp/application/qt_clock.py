@@ -21,6 +21,7 @@ class QtClock(Clock):
             无。
         """
         self._elapsed: int = 0  # 已计秒数（0~999，999 封顶）
+        self._started: bool = False  # 本局计时是否已启动（区分"未开局"与"暂停"）
         self._timer: QTimer = QTimer()  # 驱动计时的定时器
         self._timer.setInterval(1000)  # 每 1000ms 触发一次
         self._timer.timeout.connect(self._on_timeout)  # 超时回调
@@ -42,19 +43,22 @@ class QtClock(Clock):
 
     def start(self) -> None:
         """开始计时。"""
+        self._started = True
         self._timer.start()
 
     def stop(self) -> None:
         """停止计时（终局后调用）。"""
+        self._started = False
         self._timer.stop()
 
     def pause(self) -> None:
-        """暂停计时（如窗口最小化）。"""
+        """暂停计时（如窗口最小化）。保留 started 状态，恢复时据此继续。"""
         self._timer.stop()
 
     def resume(self) -> None:
-        """恢复计时。"""
-        self._timer.start()
+        """恢复计时（仅在计时已启动且未封顶时继续，避免未开局就计时）。"""
+        if self._started and self._elapsed < 999:
+            self._timer.start()
 
     def reset(self) -> None:
         """重置为初始状态（停表并归零）。"""

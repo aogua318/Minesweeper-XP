@@ -73,6 +73,7 @@ class Game:
         self._first_click: Coordinate | None = None  # 首次点击坐标（布雷锚点）
         self.safe_mode: str = "cell"  # 首击安全区模式（zone3x3 / cell）
         self.marks_enabled: bool = True  # 是否启用问号标记
+        self.color: bool = True  # 彩色显示开关（False 时 UI 渲染单色精灵，开发文档 §8）
         self.state: GameState = GameState(
             GameStatus.READY, "beginner", 9, 9, 10, 10, 0, FaceState.NORMAL
         )
@@ -81,6 +82,28 @@ class Game:
     def board(self) -> Board:
         """对外暴露当前棋盘，供 UI 读取绘制。"""
         return self._board
+
+    def pause_timer(self) -> None:
+        """暂停计时（如窗口最小化时由 UI 调用，见实施文档 §14.2.4）。
+
+        参数:
+            无。
+
+        返回:
+            无。
+        """
+        self._clock.pause()
+
+    def resume_timer(self) -> None:
+        """恢复计时（窗口恢复显示时由 UI 调用）。
+
+        参数:
+            无。
+
+        返回:
+            无。
+        """
+        self._clock.resume()
 
     def subscribe(self, listener: Callable[[Event], None]) -> None:
         """注册事件监听器。
